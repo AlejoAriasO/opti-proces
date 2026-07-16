@@ -1,0 +1,23 @@
+@import '@angular/material/prebuilt-themes/azure-blue.css';
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  background: #f5f7fa;
+}
+
+.alerta-snackbar {
+  --mdc-snackbar-container-color: #c62828;
+  --mdc-snackbar-supporting-text-color: #fff;
+  --mat-snack-bar-button-color: #ffcdd2;
+}
+
+mat-card {
+  border-radius: 12px !important;
+}
+
+table {
+  background: white;
+}

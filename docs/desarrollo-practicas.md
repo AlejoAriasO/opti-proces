@@ -227,10 +227,7 @@ Corresponde a la interfaz gráfica con la cual interactuarán los usuarios del s
 
 Las tecnologías seleccionadas para esta capa son:
 
-HTML5
-CSS3
-Bootstrap
-JavaScript
+
 
 
 
