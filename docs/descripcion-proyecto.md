@@ -1,0 +1,1 @@
+Quiero crear una aplicacion web que permita administrar los 3 modulos, gestion de inventarios, gestion de ventas, y gestion de proveedores que sea intuitiva, donde cada modulo tenga su seccion especifica en la cual se encuentre todo lo relacionado del mismo,
