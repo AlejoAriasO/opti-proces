@@ -12,6 +12,7 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { MatMenuModule } from '@angular/material/menu';
 import { AuthService } from '../../core/services/auth.service';
 import { InventarioService } from '../../core/services/inventario.service';
+import { StorageService } from '../../core/services/storage.service';
 import { VentasService } from '../../core/services/ventas.service';
 
 interface NavChild {
@@ -57,6 +58,7 @@ interface NavModule {
           <div>
             <strong>Opti-Proces</strong>
             <small>Gestión administrativa</small>
+            <small class="cloud-status">{{ cloudLabel() }}</small>
           </div>
         </div>
 
@@ -189,6 +191,12 @@ interface NavModule {
     .sidenav-header small {
       opacity: 0.8;
       font-size: 0.75rem;
+      display: block;
+    }
+    .cloud-status {
+      margin-top: 4px;
+      font-size: 0.68rem !important;
+      opacity: 0.9 !important;
     }
     .nav-list {
       padding: 4px 10px 8px;
@@ -313,8 +321,24 @@ export class MainLayoutComponent {
   readonly auth = inject(AuthService);
   private readonly inventario = inject(InventarioService);
   private readonly ventas = inject(VentasService);
+  private readonly storage = inject(StorageService);
   private readonly breakpoint = inject(BreakpointObserver);
   private readonly router = inject(Router);
+
+  readonly cloudLabel = computed(() => {
+    switch (this.storage.cloudStatus()) {
+      case 'cloud':
+        return 'Firestore conectado';
+      case 'conectando':
+        return 'Conectando a Firestore…';
+      case 'error':
+        return 'Firestore: error de conexión';
+      case 'local':
+        return 'Datos locales (sin nube)';
+      default:
+        return 'Firestore sin configurar';
+    }
+  });
 
   readonly isMobile = toSignal(
     this.breakpoint.observe([Breakpoints.Handset]).pipe(map((r) => r.matches)),

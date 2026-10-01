@@ -7,8 +7,8 @@ Software de gestión administrativa para **Industrias Arias JF SAS**. Proyecto d
 | Módulo | Estado |
 |---|---|
 | Inventarios | Implementado |
-| Proveedores | Próximamente (agosto) |
-| Ventas / Cartera | Próximamente (agosto–septiembre) |
+| Proveedores | Implementado |
+| Ventas / Cartera | Implementado |
 
 ## Requisitos
 
@@ -43,11 +43,14 @@ La aplicación estará disponible en `http://localhost:4200`.
 
 ## Almacenamiento
 
-Los datos se guardan en **localStorage** del navegador (`opti-proces-data`). La capa de servicios está preparada para migrar a una API REST cuando se integre el backend.
+Los datos se guardan en **Firebase Firestore** (colección `opti-proces`, documento `app-data`) y se mantiene una copia local en el navegador.
+
+Guía paso a paso para tu primera vez: [docs/firebase-setup.md](docs/firebase-setup.md)
 
 ## Stack
 
 - Angular 19 (standalone components)
 - Angular Material
 - TypeScript
+- Firebase Firestore
 - Locale: es-CO

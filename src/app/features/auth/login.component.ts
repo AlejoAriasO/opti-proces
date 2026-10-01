@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { AuthService } from '../../core/services/auth.service';
+import { isFirebaseConfigured } from '../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -64,6 +65,13 @@ import { AuthService } from '../../core/services/auth.service';
         </form>
 
         <p class="hint">Usuario demo: admin&#64;opti-proces.local / admin123</p>
+
+        @if (!firebaseListo) {
+          <p class="firebase-hint">
+            Firestore aún no está configurado. Sigue <strong>docs/firebase-setup.md</strong>
+            y pega tus claves en <code>src/environments/environment.ts</code>.
+          </p>
+        }
       </mat-card>
     </div>
   `,
@@ -118,6 +126,16 @@ import { AuthService } from '../../core/services/auth.service';
       font-size: 0.8rem;
       color: #90a4ae;
     }
+    .firebase-hint {
+      margin: 16px 0 0;
+      padding: 12px;
+      background: #fff8e1;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: #795548;
+      line-height: 1.4;
+    }
+    code { font-size: 0.75rem; }
   `,
 })
 export class LoginComponent {
@@ -127,6 +145,7 @@ export class LoginComponent {
 
   readonly hidePassword = signal(true);
   readonly error = signal('');
+  readonly firebaseListo = isFirebaseConfigured();
 
   readonly form = this.fb.nonNullable.group({
     correo: ['', [Validators.required, Validators.email]],
