@@ -1,11 +1,17 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { RouterLink } from '@angular/router';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { Router, RouterLink } from '@angular/router';
 import { PageHeaderComponent } from '../../../shared/components/page-header.component';
 import { InventarioService } from '../../../core/services/inventario.service';
 import { NumeroCoPipe } from '../../../shared/pipes/locale.pipes';
+import {
+  GenerarOrdenCompraDialogComponent,
+  GenerarOrdenCompraDialogData,
+} from '../../proveedores/ordenes/generar-orden-compra.dialog';
 
 @Component({
   selector: 'app-alertas-inventario',
@@ -14,6 +20,8 @@ import { NumeroCoPipe } from '../../../shared/pipes/locale.pipes';
     MatCardModule,
     MatIconModule,
     MatButtonModule,
+    MatDialogModule,
+    MatSnackBarModule,
     RouterLink,
     PageHeaderComponent,
     NumeroCoPipe,
@@ -55,9 +63,14 @@ import { NumeroCoPipe } from '../../../shared/pipes/locale.pipes';
                 </span>
               </div>
             </div>
-            <a mat-stroked-button color="primary" routerLink="/inventarios/sugerencias">
-              Ver sugerencia de compra
-            </a>
+            <div class="actions">
+              <button mat-flat-button color="primary" (click)="generarOrden(alerta)">
+                Generar orden de compra
+              </button>
+              <a mat-stroked-button routerLink="/inventarios/sugerencias">
+                Ver sugerencias
+              </a>
+            </div>
           </mat-card>
         }
       </div>
@@ -97,12 +110,57 @@ import { NumeroCoPipe } from '../../../shared/pipes/locale.pipes';
     .label { color: #78909c; font-size: 0.875rem; }
     .value { font-weight: 600; }
     .danger { color: #c62828; }
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
   `,
 })
 export class AlertasInventarioComponent {
   private readonly inventario = inject(InventarioService);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly router = inject(Router);
+  private readonly refresh = signal(0);
+
   readonly alertas = computed(() => {
+    this.refresh();
     this.inventario.version();
     return this.inventario.getAlertas();
   });
+
+  generarOrden(alerta: {
+    materiaPrimaId: string;
+    materiaPrimaNombre: string;
+    stockActual: number;
+    stockMinimo: number;
+    unidadMedida: string;
+  }): void {
+    const sugerencia = this.inventario
+      .getSugerenciasCompra()
+      .find((s) => s.materiaPrimaId === alerta.materiaPrimaId);
+
+    const data: GenerarOrdenCompraDialogData = {
+      materiaPrimaId: alerta.materiaPrimaId,
+      materiaPrimaNombre: alerta.materiaPrimaNombre,
+      cantidadSugerida:
+        sugerencia?.cantidadSugerida ??
+        Math.max(alerta.stockMinimo - alerta.stockActual, 0),
+      unidadMedida: alerta.unidadMedida,
+    };
+
+    this.dialog
+      .open(GenerarOrdenCompraDialogComponent, { width: '420px', data })
+      .afterClosed()
+      .subscribe((orden) => {
+        if (!orden) return;
+        this.snackBar.open(
+          `Orden #${orden.id.slice(0, 8)} creada correctamente.`,
+          'Ver órdenes',
+          { duration: 5000 }
+        ).onAction().subscribe(() => this.router.navigate(['/proveedores/ordenes']));
+        this.refresh.update((v) => v + 1);
+      });
+  }
 }

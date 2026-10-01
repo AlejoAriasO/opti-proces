@@ -85,15 +85,72 @@ export const routes: Routes = [
       {
         path: 'proveedores',
         loadComponent: () =>
-          import('./features/proveedores/proveedores-placeholder.component').then(
-            (m) => m.ProveedoresPlaceholderComponent
+          import('./features/proveedores/dashboard/proveedores-dashboard.component').then(
+            (m) => m.ProveedoresDashboardComponent
+          ),
+      },
+      {
+        path: 'proveedores/lista',
+        loadComponent: () =>
+          import('./features/proveedores/lista/proveedores-list.component').then(
+            (m) => m.ProveedoresListComponent
+          ),
+      },
+      {
+        path: 'proveedores/ordenes',
+        loadComponent: () =>
+          import('./features/proveedores/ordenes/ordenes-compra.component').then(
+            (m) => m.OrdenesCompraComponent
+          ),
+      },
+      {
+        path: 'proveedores/historial',
+        loadComponent: () =>
+          import('./features/proveedores/historial/historial-compras.component').then(
+            (m) => m.HistorialComprasComponent
           ),
       },
       {
         path: 'ventas',
         loadComponent: () =>
-          import('./features/ventas/ventas-placeholder.component').then(
-            (m) => m.VentasPlaceholderComponent
+          import('./features/ventas/dashboard/ventas-dashboard.component').then(
+            (m) => m.VentasDashboardComponent
+          ),
+      },
+      {
+        path: 'ventas/clientes',
+        loadComponent: () =>
+          import('./features/ventas/clientes/clientes.component').then((m) => m.ClientesComponent),
+      },
+      {
+        path: 'ventas/pedidos',
+        loadComponent: () =>
+          import('./features/ventas/pedidos/pedidos.component').then((m) => m.PedidosComponent),
+      },
+      {
+        path: 'ventas/consolidar',
+        loadComponent: () =>
+          import('./features/ventas/consolidar/consolidar-produccion.component').then(
+            (m) => m.ConsolidarProduccionComponent
+          ),
+      },
+      {
+        path: 'ventas/facturacion',
+        loadComponent: () =>
+          import('./features/ventas/facturacion/facturacion.component').then(
+            (m) => m.FacturacionComponent
+          ),
+      },
+      {
+        path: 'ventas/cartera',
+        loadComponent: () =>
+          import('./features/ventas/cartera/cartera.component').then((m) => m.CarteraComponent),
+      },
+      {
+        path: 'ventas/alertas-cartera',
+        loadComponent: () =>
+          import('./features/ventas/alertas-cartera/alertas-cartera.component').then(
+            (m) => m.AlertasCarteraComponent
           ),
       },
     ],

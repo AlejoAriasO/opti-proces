@@ -7,6 +7,13 @@ const DEFAULT_DATA: AppData = {
   recetas: [],
   compras: [],
   movimientos: [],
+  proveedores: [],
+  ordenesCompra: [],
+  clientes: [],
+  pedidos: [],
+  consolidadosProduccion: [],
+  facturas: [],
+  cartera: [],
   usuarios: [
     {
       id: '1',

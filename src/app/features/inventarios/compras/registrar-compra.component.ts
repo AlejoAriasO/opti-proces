@@ -12,6 +12,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { PageHeaderComponent } from '../../../shared/components/page-header.component';
 import { InventarioService } from '../../../core/services/inventario.service';
+import { ProveedorService } from '../../../core/services/proveedor.service';
 import { MonedaCoPipe } from '../../../shared/pipes/locale.pipes';
 
 @Component({
@@ -49,7 +50,17 @@ import { MonedaCoPipe } from '../../../shared/pipes/locale.pipes';
           </mat-form-field>
 
           <mat-form-field appearance="outline">
-            <mat-label>Proveedor</mat-label>
+            <mat-label>Proveedor registrado (opcional)</mat-label>
+            <mat-select formControlName="proveedorId" (selectionChange)="onProveedorSelect()">
+              <mat-option value="">Manual / otro</mat-option>
+              @for (p of proveedores; track p.id) {
+                <mat-option [value]="p.id">{{ p.nombre }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Nombre proveedor</mat-label>
             <input matInput formControlName="proveedorNombre" placeholder="Nombre del proveedor" />
           </mat-form-field>
 
@@ -146,13 +157,16 @@ import { MonedaCoPipe } from '../../../shared/pipes/locale.pipes';
 export class RegistrarCompraComponent {
   private readonly fb = inject(FormBuilder);
   private readonly inventario = inject(InventarioService);
+  private readonly proveedoresSvc = inject(ProveedorService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
 
   readonly materias = this.inventario.getMateriasPrimas();
+  readonly proveedores = this.proveedoresSvc.getProveedores();
 
   readonly form = this.fb.group({
     fecha: [new Date(), Validators.required],
+    proveedorId: [''],
     proveedorNombre: ['', Validators.required],
     proveedorNit: [''],
     observaciones: [''],
@@ -188,6 +202,18 @@ export class RegistrarCompraComponent {
     return this.detalles.controls.reduce((sum, _, i) => sum + this.subtotal(i), 0);
   }
 
+  onProveedorSelect(): void {
+    const id = this.form.get('proveedorId')?.value;
+    if (!id) return;
+    const proveedor = this.proveedoresSvc.getProveedorById(id);
+    if (proveedor) {
+      this.form.patchValue({
+        proveedorNombre: proveedor.nombre,
+        proveedorNit: proveedor.nit,
+      });
+    }
+  }
+
   registrar(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -199,6 +225,7 @@ export class RegistrarCompraComponent {
 
     this.inventario.registrarCompra({
       fecha,
+      proveedorId: v.proveedorId || undefined,
       proveedorNombre: v.proveedorNombre!,
       proveedorNit: v.proveedorNit ?? '',
       observaciones: v.observaciones ?? '',

@@ -21,6 +21,10 @@ export class InventarioService {
     this._version.update((v) => v + 1);
   }
 
+  touch(): void {
+    this.notifyChange();
+  }
+
   // --- Consultas ---
 
   getMateriasPrimas(): MateriaPrima[] {
@@ -80,18 +84,58 @@ export class InventarioService {
   }
 
   getSugerenciasCompra(): SugerenciaCompra[] {
-    return this.getAlertas().map((a) => {
-      const materia = this.getMateriaPrimaById(a.materiaPrimaId)!;
+    const demanda = this.calcularDemandaMateriasPrimas();
+    const materiasBajoMinimo = this.getMateriasPrimas().filter(
+      (m) => m.stockActual < m.stockMinimo || (demanda.get(m.id) ?? 0) > m.stockActual
+    );
+
+    return materiasBajoMinimo.map((m) => {
+      const demandaPedidos = demanda.get(m.id) ?? 0;
+      const deficitMinimo = Math.max(m.stockMinimo - m.stockActual, 0);
+      const deficitPedidos = Math.max(demandaPedidos - m.stockActual, 0);
+      const cantidadSugerida = Math.max(deficitMinimo, deficitPedidos);
+
+      const proveedor = this.storage
+        .load()
+        .proveedores.filter((p) => p.estado === 'activo')
+        .find((p) => p.materiasPrimasIds.includes(m.id));
+
       return {
-        materiaPrimaId: a.materiaPrimaId,
-        materiaPrimaNombre: a.materiaPrimaNombre,
-        stockActual: a.stockActual,
-        stockMinimo: a.stockMinimo,
-        cantidadSugerida: Math.max(a.stockMinimo - a.stockActual, 0),
-        unidadMedida: a.unidadMedida,
-        costoPromedio: materia.costoPromedio,
+        materiaPrimaId: m.id,
+        materiaPrimaNombre: m.nombre,
+        stockActual: m.stockActual,
+        stockMinimo: m.stockMinimo,
+        cantidadSugerida,
+        cantidadPorPedidos: demandaPedidos,
+        unidadMedida: m.unidadMedida,
+        costoPromedio: m.costoPromedio,
+        proveedorSugeridoId: proveedor?.id,
+        proveedorSugeridoNombre: proveedor?.nombre,
       };
     });
+  }
+
+  private calcularDemandaMateriasPrimas(): Map<string, number> {
+    const demanda = new Map<string, number>();
+    const data = this.storage.load();
+
+    const pedidosActivos = data.pedidos.filter(
+      (p) => p.estado === 'pendiente' || p.estado === 'en_produccion'
+    );
+
+    for (const pedido of pedidosActivos) {
+      for (const det of pedido.detalles) {
+        const receta = data.recetas.find((r) => r.productoId === det.productoId);
+        if (!receta) continue;
+
+        for (const ing of receta.ingredientes) {
+          const necesario = ing.cantidad * det.cantidad;
+          demanda.set(ing.materiaPrimaId, (demanda.get(ing.materiaPrimaId) ?? 0) + necesario);
+        }
+      }
+    }
+
+    return demanda;
   }
 
   // --- Materias primas CRUD ---
@@ -200,8 +244,10 @@ export class InventarioService {
 
   registrarCompra(compra: {
     fecha: string;
+    proveedorId?: string;
     proveedorNombre: string;
     proveedorNit: string;
+    ordenCompraId?: string;
     observaciones: string;
     detalles: { materiaPrimaId: string; cantidad: number; precioUnitario: number }[];
   }) {
@@ -357,6 +403,49 @@ export class InventarioService {
     return { ok: true };
   }
 
+  registrarDespachoPedido(
+    pedidoId: string,
+    detalles: { productoId: string; cantidad: number }[]
+  ): { ok: boolean; error?: string } {
+    const faltantes: string[] = [];
+
+    for (const det of detalles) {
+      const producto = this.getProductoById(det.productoId);
+      if (!producto || producto.stockActual < det.cantidad) {
+        faltantes.push(
+          `${producto?.nombre ?? 'Producto'}: disponible ${producto?.stockActual ?? 0}, requerido ${det.cantidad}`
+        );
+      }
+    }
+
+    if (faltantes.length > 0) {
+      return { ok: false, error: `Stock insuficiente:\n${faltantes.join('\n')}` };
+    }
+
+    this.storage.update((d) => {
+      for (const det of detalles) {
+        const p = d.productosTerminados.find((x) => x.id === det.productoId)!;
+        const stockAnterior = p.stockActual;
+        p.stockActual -= det.cantidad;
+
+        d.movimientos.push(
+          this.crearMovimiento({
+            tipo: 'salida_venta',
+            productoId: p.id,
+            cantidad: det.cantidad,
+            stockAnterior,
+            stockNuevo: p.stockActual,
+            referencia: `Pedido #${pedidoId.slice(0, 8)}`,
+            observaciones: 'Despacho a cliente',
+          })
+        );
+      }
+    });
+
+    this.notifyChange();
+    return { ok: true };
+  }
+
   // --- Helpers ---
 
   private crearMovimiento(
@@ -396,6 +485,7 @@ export class InventarioService {
       salida_manual: 'Salida manual',
       produccion_materia: 'Consumo en producción',
       produccion_producto: 'Entrada por producción',
+      salida_venta: 'Salida por venta',
     };
     return labels[tipo];
   }

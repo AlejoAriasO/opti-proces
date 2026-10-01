@@ -1,12 +1,19 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { RouterLink } from '@angular/router';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { Router, RouterLink } from '@angular/router';
 import { PageHeaderComponent } from '../../../shared/components/page-header.component';
 import { InventarioService } from '../../../core/services/inventario.service';
+import { SugerenciaCompra } from '../../../core/models';
 import { NumeroCoPipe, MonedaCoPipe } from '../../../shared/pipes/locale.pipes';
+import {
+  GenerarOrdenCompraDialogComponent,
+  GenerarOrdenCompraDialogData,
+} from '../../proveedores/ordenes/generar-orden-compra.dialog';
 
 @Component({
   selector: 'app-sugerencias-compra',
@@ -16,6 +23,8 @@ import { NumeroCoPipe, MonedaCoPipe } from '../../../shared/pipes/locale.pipes';
     MatTableModule,
     MatButtonModule,
     MatIconModule,
+    MatDialogModule,
+    MatSnackBarModule,
     RouterLink,
     PageHeaderComponent,
     NumeroCoPipe,
@@ -24,7 +33,7 @@ import { NumeroCoPipe, MonedaCoPipe } from '../../../shared/pipes/locale.pipes';
   template: `
     <app-page-header
       title="Sugerencias de compra"
-      subtitle="Cantidades sugeridas para reponer materias primas bajo el nivel mínimo"
+      subtitle="Considera stock mínimo y demanda de pedidos pendientes por fabricar"
       icon="lightbulb"
     />
 
@@ -48,10 +57,10 @@ import { NumeroCoPipe, MonedaCoPipe } from '../../../shared/pipes/locale.pipes';
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="minimo">
-            <th mat-header-cell *matHeaderCellDef>Stock mínimo</th>
+          <ng-container matColumnDef="pedidos">
+            <th mat-header-cell *matHeaderCellDef>Demanda pedidos</th>
             <td mat-cell *matCellDef="let row">
-              {{ row.stockMinimo | numeroCo:2 }} {{ row.unidadMedida }}
+              {{ row.cantidadPorPedidos | numeroCo:2 }} {{ row.unidadMedida }}
             </td>
           </ng-container>
 
@@ -62,10 +71,24 @@ import { NumeroCoPipe, MonedaCoPipe } from '../../../shared/pipes/locale.pipes';
             </td>
           </ng-container>
 
+          <ng-container matColumnDef="proveedor">
+            <th mat-header-cell *matHeaderCellDef>Proveedor sugerido</th>
+            <td mat-cell *matCellDef="let row">{{ row.proveedorSugeridoNombre ?? '—' }}</td>
+          </ng-container>
+
           <ng-container matColumnDef="costo">
             <th mat-header-cell *matHeaderCellDef>Costo estimado</th>
             <td mat-cell *matCellDef="let row">
               {{ row.cantidadSugerida * row.costoPromedio | monedaCo }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="acciones">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let row">
+              <button mat-stroked-button color="primary" (click)="generarOrden(row)">
+                Generar orden
+              </button>
             </td>
           </ng-container>
 
@@ -74,13 +97,14 @@ import { NumeroCoPipe, MonedaCoPipe } from '../../../shared/pipes/locale.pipes';
         </table>
 
         <div class="footer">
-          <a mat-flat-button color="primary" routerLink="/inventarios/compras">
-            <mat-icon>add_shopping_cart</mat-icon>
-            Registrar compra
+          <a mat-stroked-button routerLink="/proveedores/ordenes">
+            <mat-icon>receipt_long</mat-icon>
+            Ver órdenes de compra
           </a>
-          <p class="note">
-            En una fase posterior, el módulo de proveedores generará órdenes de compra a partir de estas sugerencias.
-          </p>
+          <a mat-stroked-button routerLink="/inventarios/compras">
+            <mat-icon>add_shopping_cart</mat-icon>
+            Registrar compra manual
+          </a>
         </div>
       </mat-card>
     }
@@ -101,19 +125,46 @@ import { NumeroCoPipe, MonedaCoPipe } from '../../../shared/pipes/locale.pipes';
     .footer {
       padding: 24px;
       border-top: 1px solid #eceff1;
-    }
-    .note {
-      margin: 12px 0 0;
-      font-size: 0.85rem;
-      color: #90a4ae;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
     }
   `,
 })
 export class SugerenciasCompraComponent {
   private readonly inventario = inject(InventarioService);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly router = inject(Router);
+  private readonly refresh = signal(0);
+
   readonly sugerencias = computed(() => {
+    this.refresh();
     this.inventario.version();
     return this.inventario.getSugerenciasCompra();
   });
-  readonly columns = ['materia', 'stock', 'minimo', 'sugerida', 'costo'];
+
+  readonly columns = ['materia', 'stock', 'pedidos', 'sugerida', 'proveedor', 'costo', 'acciones'];
+
+  generarOrden(row: SugerenciaCompra): void {
+    const data: GenerarOrdenCompraDialogData = {
+      materiaPrimaId: row.materiaPrimaId,
+      materiaPrimaNombre: row.materiaPrimaNombre,
+      cantidadSugerida: row.cantidadSugerida,
+      unidadMedida: row.unidadMedida,
+    };
+
+    this.dialog
+      .open(GenerarOrdenCompraDialogComponent, { width: '420px', data })
+      .afterClosed()
+      .subscribe((orden) => {
+        if (!orden) return;
+        this.snackBar.open(
+          `Orden #${orden.id.slice(0, 8)} creada correctamente.`,
+          'Ver órdenes',
+          { duration: 5000 }
+        ).onAction().subscribe(() => this.router.navigate(['/proveedores/ordenes']));
+        this.refresh.update((v) => v + 1);
+      });
+  }
 }
